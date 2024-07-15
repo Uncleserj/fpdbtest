@@ -134,6 +134,7 @@ class Database implements DatabaseInterface
 
             $parts = $excluded = [];
             $offset = 0;
+            $temp_query = $query;
 
             foreach( $matches[0] as $condition ) {
                 $condition_len = strlen( $condition );
@@ -145,17 +146,19 @@ class Database implements DatabaseInterface
                 $condition_end = $condition_start + $condition_len;
                 $offset = $condition_end;
 
+                $placeholder = '%';
+                for( $i = 0; $i < $condition_len - 2; $i++ ) {
+                    $placeholder .= '_';
+                }
+                $placeholder .= '%';
+
+                $temp_query = substr_replace( $temp_query, $placeholder, $condition_start, $condition_len );
+
                 $found = false;
                 $key = 0;
                 foreach( $bindings as $pos => $binding ) {
                     if ( $pos > $condition_start && $pos < $condition_end && $args[$key] === $this->identifier ) {
                         $found = true;
-
-                        $placeholder = '%';
-                        for( $i = 0; $i < $condition_len - 2; $i++ ) {
-                            $placeholder .= '_';
-                        }
-                        $placeholder .= '%';
 
                         $parts[] = [$placeholder, $condition_start, $condition_len];
                         break;
@@ -172,6 +175,8 @@ class Database implements DatabaseInterface
                 }
 
             }
+
+            if ( strpos( $temp_query, '}' ) !== false ) throw new Exception( 'Условные блоки не могут быть вложенными' );
 
             $this->format_query($query, $parts);
 
